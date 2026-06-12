@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gratinata POS</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0a0a;color:#f0f0f0;font-family:system-ui,sans-serif;font-size:14px;min-height:100vh}
+:root{--gold:#c9a84c;--surface:#1a1a1a;--surface2:#242424;--border:#333;--text:#f0f0f0;--muted:#999}
+button{cursor:pointer;font-family:inherit;font-size:13px}
+input,select{font-family:inherit;font-size:13px;background:#242424;border:1px solid #333;border-radius:8px;padding:7px 10px;color:#f0f0f0;outline:none}
+input:focus,select:focus{border-color:var(--gold)}
+
+/* layout */
+#app{display:flex;flex-direction:column;min-height:100vh}
+#header{background:#1a1a1a;border-bottom:1px solid #333;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+#logo{font-size:18px;font-weight:600;color:var(--gold);letter-spacing:1px}
+#nav{display:flex;gap:6px;flex-wrap:wrap}
+.nav-btn{background:transparent;color:#999;border:1px solid #333;border-radius:8px;padding:6px 12px;font-weight:400;transition:all .15s}
+.nav-btn.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
+#main{flex:1;display:flex;overflow:hidden;height:calc(100vh - 53px)}
+
+/* views */
+.view{display:none;width:100%}
+.view.active{display:flex;flex-direction:column}
+#view-home{flex-direction:row!important}
+
+/* home */
+#menu-panel{flex:1;overflow-y:auto;padding:16px;border-right:1px solid #333}
+#cart-panel{width:280px;display:flex;flex-direction:column;padding:16px;gap:8px}
+.type-pills{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.pill{background:#242424;color:#999;border:1px solid #333;border-radius:20px;padding:4px 12px;font-size:12px;transition:all .15s}
+.pill.active{background:var(--gold);color:#000;border-color:var(--gold);font-weight:600}
+.delivery-form{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px}
+.delivery-form input{width:100%}
+.mesa-form{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;margin-bottom:12px}
+.mesa-form-row{display:flex;gap:8px;align-items:center;margin-top:8px}
+.mesa-form-row select{flex:1}
+.mesa-form-row input{width:60px}
+.cat-pills{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px}
+.menu-item{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;text-align:left;color:#f0f0f0;transition:border-color .15s}
+.menu-item:hover{border-color:var(--gold)}
+.menu-item-name{font-weight:500;font-size:13px;margin-bottom:4px}
+.menu-item-price{color:var(--gold);font-weight:600}
+#cart-title{font-size:13px;font-weight:600;color:var(--gold);margin-bottom:4px}
+#cart-items{flex:1;overflow-y:auto}
+.cart-empty{color:#999;font-size:13px;text-align:center;margin-top:40px}
+.cart-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #333}
+.cart-row-info{font-size:13px}
+.cart-row-sub{font-size:12px;color:#999}
+.cart-row-qty{display:flex;align-items:center;gap:6px}
+.qty-btn{background:#242424;color:#f0f0f0;border:1px solid #333;border-radius:6px;padding:2px 8px;font-size:14px}
+#cart-footer{border-top:1px solid #333;padding-top:12px}
+.cart-total{display:flex;justify-content:space-between;font-weight:700;font-size:16px;margin-bottom:12px}
+.btn-primary{background:var(--gold);color:#000;border:1px solid var(--gold);border-radius:8px;padding:8px 16px;font-weight:600;width:100%;font-size:15px;margin-bottom:8px;transition:opacity .15s}
+.btn-primary:hover{opacity:.9}
+.btn-danger{background:#c0392b;color:#fff;border:1px solid #c0392b;border-radius:8px;padding:8px 16px;width:100%;transition:opacity .15s}
+.btn-danger:hover{opacity:.9}
+.btn-secondary{background:#242424;color:#f0f0f0;border:1px solid #333;border-radius:8px;padding:8px 16px;transition:background .15s}
+.btn-secondary:hover{background:#333}
+
+/* mesas */
+#view-mesas{padding:20px}
+#mesa-map{position:relative;background:#1a1a1a;border:1px solid #333;border-radius:12px;width:560px;height:360px;margin-bottom:16px}
+.mesa-label{position:absolute;top:8px;left:12px;font-size:11px;color:#999}
+.mesa-box{position:absolute;width:80px;height:70px;background:#242424;border:2px solid #333;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:border-color .15s}
+.mesa-box:hover{border-color:var(--gold)}
+.mesa-box.occupied{background:#1a3a1a;border-color:#4caf50}
+.mesa-box-label{font-size:11px;color:#999}
+.mesa-box-num{font-weight:700;font-size:16px}
+.mesa-box.occupied .mesa-box-num{color:#4caf50}
+.mesa-box-guests{font-size:10px;color:#4caf50}
+.mesa-legend{display:flex;gap:16px;font-size:12px;color:#999}
+
+/* ventas */
+#view-ventas{padding:20px;overflow-y:auto}
+#view-productos{padding:20px;overflow-y:auto}
+.metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.metric-card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px;text-align:center}
+.metric-label{font-size:12px;color:#999;margin-bottom:6px}
+.metric-value{font-size:22px;font-weight:700}
+.type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.type-card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px}
+.type-card-label{font-size:12px;color:#999}
+.type-card-val{font-weight:600;font-size:16px;margin-top:4px}
+.type-card-sub{font-size:12px;color:#999}
+.detail-card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:12px}
+.detail-title{font-size:13px;font-weight:600;margin-bottom:10px}
+.order-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #333}
+.order-row-info{font-size:13px}
+.order-row-num{font-size:12px;color:#999}
+.product-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #333}
+.product-rank{width:22px;height:22px;border-radius:50%;background:#242424;display:flex;align-items:center;justify-content:center;font-size:11px;color:#999;flex-shrink:0}
+.product-name{flex:1;font-size:14px}
+.product-qty{color:#999;font-size:13px}
+.product-total{color:var(--gold);font-weight:600;min-width:90px;text-align:right}
+.product-footer{display:flex;justify-content:space-between;padding-top:10px;font-weight:700}
+
+/* comanda print */
+#comanda{display:none;position:fixed;inset:0;background:#0a0a0a;z-index:100;overflow-y:auto;padding:20px}
+#comanda.show{display:flex;align-items:flex-start;justify-content:center}
+.comanda-card{background:#1a1a1a;border:2px solid var(--gold);border-radius:10px;padding:16px;width:340px}
+.comanda-header{text-align:center;border-bottom:1px solid #333;padding-bottom:12px;margin-bottom:12px}
+.comanda-brand{font-size:20px;font-weight:700;color:var(--gold)}
+.comanda-sub{font-size:12px;color:#999}
+.comanda-info{font-size:13px;margin-top:6px}
+.comanda-meta{font-size:12px;color:#999}
+.comanda-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #333;font-size:13px}
+.comanda-total{display:flex;justify-content:space-between;margin-top:12px;font-weight:700;font-size:16px}
+.comanda-addr{margin-top:8px;font-size:12px;color:#999}
+.comanda-actions{margin-top:16px;display:flex;gap:8px}
+.comanda-actions button{flex:1;padding:10px 0;border-radius:8px;font-size:14px;font-weight:600;border:none}
+.btn-ok{background:var(--gold);color:#000}
+.btn-print{background:#242424;color:#f0f0f0;border:1px solid #333!important}
+
+/* 80mm thermal print */
+@media print{
+  body,#app,#header,#main,#comanda{all:unset}
+  #comanda{display:block!important;position:static!important;background:#fff!important;padding:0!important}
+  #comanda *{color:#000!important;background:#fff!important;border-color:#000!important}
+  .comanda-actions{display:none!important}
+  .comanda-card{
+    width:72mm!important;
+    max-width:72mm!important;
+    border:none!important;
+    padding:2mm!important;
+    font-family:'Courier New',monospace!important;
+    font-size:9pt!important;
+    line-height:1.4!important;
+  }
+  .comanda-brand{font-size:14pt!important;font-weight:700!important;letter-spacing:2px!important}
+  .comanda-row{font-size:9pt!important}
+  .comanda-total{font-size:11pt!important;font-weight:700!important;border-top:1px dashed #000!important;padding-top:4px!important}
+  * {-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <span id="logo">GRATINATA POS</span>
+    <div id="nav">
+      <button class="nav-btn active" data-view="home">Nuevo pedido</button>
+      <button class="nav-btn" data-view="mesas">Mesas</button>
+      <button class="nav-btn" data-view="ventas">Ventas del día</button>
+      <button class="nav-btn" data-view="productos">Por producto</button>
+    </div>
+  </div>
+  <div id="main">
+
+    <!-- HOME -->
+    <div id="view-home" class="view active">
+      <div id="menu-panel">
+        <div class="type-pills">
+          <button class="pill active" data-type="mostrador">🏪 Mostrador</button>
+          <button class="pill" data-type="mesa">🪑 Mesa</button>
+          <button class="pill" data-type="delivery">🛵 Delivery</button>
+        </div>
+        <div id="mesa-form" class="mesa-form" style="display:none">
+          <div style="font-size:12px;color:#999">Mesa y personas</div>
+          <div class="mesa-form-row">
+            <select id="mesa-select"><option value="">Seleccionar...</option></select>
+            <span style="font-size:12px;color:#999">Personas:</span>
+            <input type="number" id="guest-count" min="1" max="12" value="2">
+          </div>
+        </div>
+        <div id="delivery-form" class="delivery-form" style="display:none">
+          <input id="delivery-name" placeholder="Nombre cliente">
+          <input id="delivery-addr" placeholder="Dirección">
+        </div>
+        <div class="cat-pills" id="cat-pills"></div>
+        <div class="menu-grid" id="menu-grid"></div>
+      </div>
+      <div id="cart-panel">
+        <div id="cart-title">Pedido actual</div>
+        <div id="cart-items"><div class="cart-empty">Sin productos</div></div>
+        <div id="cart-footer">
+          <div class="cart-total"><span>Total</span><span id="cart-total-val" style="color:var(--gold)">$0</span></div>
+          <button class="btn-primary" id="btn-confirm">✓ Confirmar pedido</button>
+          <button class="btn-danger" id="btn-clear" style="display:none">Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MESAS -->
+    <div id="view-mesas" class="view">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px">Mapa de mesas</div>
+      <div id="mesa-map">
+        <div class="mesa-label">SALÓN</div>
+      </div>
+      <div class="mesa-legend">
+        <span>🟩 Ocupada</span>
+        <span>⬛ Libre</span>
+        <span id="mesa-count" style="margin-left:auto"></span>
+      </div>
+    </div>
+
+    <!-- VENTAS -->
+    <div id="view-ventas" class="view">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px">Ventas del día</div>
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="metric-label">Total vendido</div><div class="metric-value" id="m-total" style="color:var(--gold)">$0</div></div>
+        <div class="metric-card"><div class="metric-label">Pedidos</div><div class="metric-value" id="m-orders">0</div></div>
+        <div class="metric-card"><div class="metric-label">Ticket promedio</div><div class="metric-value" id="m-avg">$0</div></div>
+      </div>
+      <div class="type-grid">
+        <div class="type-card"><div class="type-card-label">🏪 Mostrador</div><div class="type-card-val" id="t-mostrador">$0</div><div class="type-card-sub" id="t-mostrador-n">0 pedidos</div></div>
+        <div class="type-card"><div class="type-card-label">🪑 Mesa</div><div class="type-card-val" id="t-mesa">$0</div><div class="type-card-sub" id="t-mesa-n">0 pedidos</div></div>
+        <div class="type-card"><div class="type-card-label">🛵 Delivery</div><div class="type-card-val" id="t-delivery">$0</div><div class="type-card-sub" id="t-delivery-n">0 pedidos</div></div>
+      </div>
+      <div class="detail-card">
+        <div class="detail-title">Detalle de pedidos</div>
+        <div id="orders-list"><div style="color:#999;font-size:13px">Sin pedidos hoy</div></div>
+      </div>
+    </div>
+
+    <!-- PRODUCTOS -->
+    <div id="view-productos" class="view">
+      <div style="font-size:15px;font-weight:600;margin-bottom:16px">Ventas por producto — hoy</div>
+      <div class="detail-card">
+        <div id="products-list"><div style="color:#999">Sin ventas registradas</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- COMANDA -->
+<div id="comanda">
+  <div class="comanda-card">
+    <div class="comanda-header">
+      <div class="comanda-brand">GRATINATA PIZZA</div>
+      <div class="comanda-sub">Limache</div>
+      <div class="comanda-info" id="c-info"></div>
+      <div class="comanda-meta" id="c-meta"></div>
+    </div>
+    <div id="c-items"></div>
+    <div class="comanda-total"><span>TOTAL</span><span id="c-total" style="color:var(--gold)"></span></div>
+    <div class="comanda-addr" id="c-addr"></div>
+    <div class="comanda-actions">
+      <button class="btn-ok" id="c-ok">✓ Listo</button>
+      <button class="btn-print btn-secondary" onclick="window.print()">🖨 Imprimir</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MENU = [
+  {id:1,cat:"Pizzas",name:"Margherita",price:9900},
+  {id:2,cat:"Pizzas",name:"Pepperoni",price:11900},
+  {id:3,cat:"Pizzas",name:"Champi Vegui",price:10900},
+  {id:4,cat:"Pizzas",name:"Camarón Blanco",price:13900},
+  {id:5,cat:"Pizzas",name:"4 Quesos",price:12900},
+  {id:6,cat:"Pizzas",name:"Napolitana",price:10900},
+  {id:7,cat:"Burgers",name:"Gratinata Burger",price:8900},
+  {id:8,cat:"Burgers",name:"Gratidog Gringo",price:7900},
+  {id:9,cat:"Paninis",name:"Panini Con Palta",price:6900},
+  {id:10,cat:"Paninis",name:"Panini Napolitano",price:6900},
+  {id:11,cat:"Bebidas",name:"Bebida lata",price:1500},
+  {id:12,cat:"Bebidas",name:"Agua mineral",price:1200},
+  {id:13,cat:"Bebidas",name:"Jugo natural",price:2500},
+];
+const TABLES = [
+  {id:1,x:40,y:40},{id:2,x:160,y:40},{id:3,x:280,y:40},{id:4,x:400,y:40},
+  {id:5,x:40,y:140},{id:6,x:160,y:140},{id:7,x:280,y:140},{id:8,x:400,y:140},
+  {id:9,x:40,y:240},{id:10,x:160,y:240},{id:11,x:280,y:240},{id:12,x:400,y:240},
+];
+
+const fmt = n => "$"+n.toLocaleString("es-CL");
+const nowTime = () => new Date().toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"});
+const todayDate = () => new Date().toLocaleDateString("es-CL");
+
+let orders = [], tableStates = {}, cart = [], orderType = "mostrador";
+let activeCat = "Pizzas", activeTable = null, orderCounter = 1;
+
+// NAV
+document.querySelectorAll(".nav-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".nav-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    btn.classList.add("active");
+    const v = document.getElementById("view-"+btn.dataset.view);
+    if(v) v.classList.add("active");
+    if(btn.dataset.view === "ventas") renderVentas();
+    if(btn.dataset.view === "productos") renderProductos();
+    if(btn.dataset.view === "mesas") renderMesaMap();
+  });
+});
+
+// ORDER TYPE
+document.querySelectorAll(".pill[data-type]").forEach(p => {
+  p.addEventListener("click", () => {
+    document.querySelectorAll(".pill[data-type]").forEach(x => x.classList.remove("active"));
+    p.classList.add("active");
+    orderType = p.dataset.type;
+    document.getElementById("mesa-form").style.display = orderType==="mesa"?"block":"none";
+    document.getElementById("delivery-form").style.display = orderType==="delivery"?"flex":"none";
+  });
+});
+
+// MESA SELECT populate
+const msSelect = document.getElementById("mesa-select");
+TABLES.forEach(t => {
+  const o = document.createElement("option");
+  o.value = t.id; o.textContent = "Mesa "+t.id;
+  msSelect.appendChild(o);
+});
+msSelect.addEventListener("change", () => activeTable = Number(msSelect.value)||null);
+
+// CATEGORIES
+const cats = [...new Set(MENU.map(i=>i.cat))];
+const catPills = document.getElementById("cat-pills");
+cats.forEach(c => {
+  const b = document.createElement("button");
+  b.className = "pill"+(c===activeCat?" active":"");
+  b.textContent = c;
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".cat-pills .pill").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    activeCat = c;
+    renderMenu();
+  });
+  catPills.appendChild(b);
+});
+
+function renderMenu() {
+  const grid = document.getElementById("menu-grid");
+  grid.innerHTML = "";
+  MENU.filter(i=>i.cat===activeCat).forEach(item => {
+    const btn = document.createElement("button");
+    btn.className = "menu-item";
+    btn.innerHTML = `<div class="menu-item-name">${item.name}</div><div class="menu-item-price">${fmt(item.price)}</div>`;
+    btn.addEventListener("click", () => addToCart(item));
+    grid.appendChild(btn);
+  });
+}
+renderMenu();
+
+function addToCart(item) {
+  const ex = cart.find(x=>x.id===item.id);
+  if(ex) ex.qty++; else cart.push({...item,qty:1});
+  renderCart();
+}
+function removeFromCart(id) {
+  const ex = cart.find(x=>x.id===id);
+  if(!ex) return;
+  if(ex.qty===1) cart = cart.filter(x=>x.id!==id); else ex.qty--;
+  renderCart();
+}
+function renderCart() {
+  const el = document.getElementById("cart-items");
+  const total = cart.reduce((s,i)=>s+i.price*i.qty,0);
+  document.getElementById("cart-total-val").textContent = fmt(total);
+  document.getElementById("btn-clear").style.display = cart.length?"block":"none";
+  if(!cart.length){el.innerHTML='<div class="cart-empty">Sin productos</div>';return;}
+  el.innerHTML = cart.map(i=>`
+    <div class="cart-row">
+      <div><div class="cart-row-info">${i.name}</div><div class="cart-row-sub">${fmt(i.price)} c/u</div></div>
+      <div class="cart-row-qty">
+        <button class="qty-btn" data-action="dec" data-id="${i.id}">−</button>
+        <span>${i.qty}</span>
+        <button class="qty-btn" data-action="inc" data-id="${i.id}">+</button>
+      </div>
+    </div>`).join("");
+  el.querySelectorAll(".qty-btn").forEach(b => {
+    b.addEventListener("click", () => {
+      const id = Number(b.dataset.id);
+      if(b.dataset.action==="inc") addToCart(MENU.find(x=>x.id===id));
+      else removeFromCart(id);
+    });
+  });
+}
+
+document.getElementById("btn-clear").addEventListener("click",()=>{cart=[];renderCart();});
+
+document.getElementById("btn-confirm").addEventListener("click", () => {
+  if(!cart.length) return;
+  const num = orderCounter++;
+  const order = {
+    id:num, type:orderType,
+    table: orderType==="mesa"?activeTable:null,
+    guests: orderType==="mesa"?Number(document.getElementById("guest-count").value):null,
+    deliveryName: orderType==="delivery"?document.getElementById("delivery-name").value:"",
+    deliveryAddr: orderType==="delivery"?document.getElementById("delivery-addr").value:"",
+    items:[...cart.map(i=>({...i}))],
+    total:cart.reduce((s,i)=>s+i.price*i.qty,0),
+    time:nowTime(), date:todayDate()
+  };
+  orders.push(order);
+  if(orderType==="mesa"&&activeTable) tableStates[activeTable]={occupied:true,orderId:num,guests:order.guests};
+  showComanda(order);
+  cart=[];
+  document.getElementById("delivery-name").value="";
+  document.getElementById("delivery-addr").value="";
+  renderCart();
+});
+
+function showComanda(o) {
+  document.getElementById("c-info").textContent =
+    o.type==="mesa"?`Mesa ${o.table} — ${o.guests} personas`:
+    o.type==="delivery"?`Delivery: ${o.deliveryName}`:"Mostrador";
+  document.getElementById("c-meta").textContent = `Pedido #${String(o.id).padStart(3,"0")} — ${o.time}`;
+  document.getElementById("c-items").innerHTML = o.items.map(i=>
+    `<div class="comanda-row"><span>${i.qty}x ${i.name}</span><span style="color:var(--gold)">${fmt(i.price*i.qty)}</span></div>`
+  ).join("");
+  document.getElementById("c-total").textContent = fmt(o.total);
+  document.getElementById("c-addr").textContent = o.deliveryAddr?`📍 ${o.deliveryAddr}`:"";
+  document.getElementById("comanda").classList.add("show");
+}
+document.getElementById("c-ok").addEventListener("click",()=>{
+  document.getElementById("comanda").classList.remove("show");
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  document.querySelector('.nav-btn[data-view="home"]').classList.add("active");
+  document.getElementById("view-home").classList.add("active");
+});
+
+// MESAS MAP
+function renderMesaMap() {
+  const map = document.getElementById("mesa-map");
+  map.querySelectorAll(".mesa-box").forEach(b=>b.remove());
+  TABLES.forEach(t => {
+    const occ = tableStates[t.id];
+    const box = document.createElement("div");
+    box.className = "mesa-box"+(occ?" occupied":"");
+    box.style.left = t.x+"px"; box.style.top = t.y+"px";
+    box.innerHTML = `<span class="mesa-box-label">Mesa</span><span class="mesa-box-num">${t.id}</span>${occ?`<span class="mesa-box-guests">👥 ${occ.guests}</span>`:""}`;
+    box.addEventListener("click",()=>{
+      if(occ){
+        if(confirm(`¿Cerrar mesa ${t.id}?`)){delete tableStates[t.id];renderMesaMap();}
+      } else {
+        msSelect.value = t.id; activeTable = t.id;
+        document.querySelectorAll(".pill[data-type]").forEach(p=>p.classList.remove("active"));
+        document.querySelector('.pill[data-type="mesa"]').classList.add("active");
+        orderType="mesa";
+        document.getElementById("mesa-form").style.display="block";
+        document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+        document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+        document.querySelector('.nav-btn[data-view="home"]').classList.add("active");
+        document.getElementById("view-home").classList.add("active");
+      }
+    });
+    map.appendChild(box);
+  });
+  const occ = Object.keys(tableStates).length;
+  document.getElementById("mesa-count").textContent = `Ocupadas: ${occ} / ${TABLES.length}`;
+}
+
+// VENTAS
+function renderVentas() {
+  const hoy = todayDate();
+  const hoyOrders = orders.filter(o=>o.date===hoy);
+  const total = hoyOrders.reduce((s,o)=>s+o.total,0);
+  document.getElementById("m-total").textContent = fmt(total);
+  document.getElementById("m-orders").textContent = hoyOrders.length;
+  document.getElementById("m-avg").textContent = hoyOrders.length?fmt(Math.round(total/hoyOrders.length)):"$0";
+  ["mostrador","mesa","delivery"].forEach(t=>{
+    const sub = hoyOrders.filter(o=>o.type===t);
+    document.getElementById("t-"+t).textContent = fmt(sub.reduce((s,o)=>s+o.total,0));
+    document.getElementById("t-"+t+"-n").textContent = sub.length+" pedidos";
+  });
+  const list = document.getElementById("orders-list");
+  if(!hoyOrders.length){list.innerHTML='<div style="color:#999;font-size:13px">Sin pedidos hoy</div>';return;}
+  list.innerHTML = [...hoyOrders].reverse().map(o=>`
+    <div class="order-row">
+      <div><span class="order-row-num">#${String(o.id).padStart(3,"0")} ${o.time} — </span>
+      <span>${o.type==="mesa"?`Mesa ${o.table}`:o.type==="delivery"?`Delivery ${o.deliveryName}`:"Mostrador"}</span></div>
+      <span style="color:var(--gold);font-weight:600">${fmt(o.total)}</span>
+    </div>`).join("");
+}
+
+// PRODUCTOS
+function renderProductos() {
+  const hoy = todayDate();
+  const hoyOrders = orders.filter(o=>o.date===hoy);
+  const ps = {};
+  hoyOrders.forEach(o=>o.items.forEach(i=>{
+    if(!ps[i.name])ps[i.name]={qty:0,total:0};
+    ps[i.name].qty+=i.qty; ps[i.name].total+=i.price*i.qty;
+  }));
+  const list = Object.entries(ps).sort((a,b)=>b[1].qty-a[1].qty);
+  const el = document.getElementById("products-list");
+  if(!list.length){el.innerHTML='<div style="color:#999">Sin ventas registradas</div>';return;}
+  const grandTotal = list.reduce((s,[,d])=>s+d.total,0);
+  el.innerHTML = list.map(([name,d],i)=>`
+    <div class="product-row">
+      <div class="product-rank">${i+1}</div>
+      <div class="product-name">${name}</div>
+      <div class="product-qty">${d.qty} und</div>
+      <div class="product-total">${fmt(d.total)}</div>
+    </div>`).join("")+
+    `<div class="product-footer"><span>Total</span><span style="color:var(--gold)">${fmt(grandTotal)}</span></div>`;
+}
+</script>
+</body>
+</html>
