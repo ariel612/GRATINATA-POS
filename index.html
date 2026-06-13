@@ -144,17 +144,26 @@ textarea{resize:none}
 #sell-r.mob-open{display:flex!important;position:fixed;top:0;right:0;bottom:58px;width:min(320px,100vw);z-index:89;box-shadow:-4px 0 20px rgba(0,0,0,.15)}
 
 /* ── MESAS ── */
-#v-mesas{flex-direction:column;padding:14px;overflow-y:auto}
-#mesa-map-wrap{position:relative;background:#fff;border:1px solid var(--bd);border-radius:12px;width:100%;max-width:560px;height:360px;margin-bottom:12px;overflow:hidden}
-.m-room-label{position:absolute;top:8px;left:12px;font-size:11px;color:var(--mt)}
-.mbox{position:absolute;width:78px;height:68px;background:#f8f9fb;border:2px solid var(--bd);border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px}
+#v-mesas{flex-direction:column;padding:14px;overflow-y:auto;gap:10px}
+.mesa-zone{background:#fff;border:1px solid var(--bd);border-radius:12px;overflow:hidden}
+.mesa-zone-hdr{padding:10px 14px;background:#f8f9fb;border-bottom:1px solid var(--bd);font-weight:600;font-size:13px;display:flex;justify-content:space-between;align-items:center}
+.mesa-canvas{position:relative;width:100%;height:300px;overflow:hidden}
+.mbox{position:absolute;background:#f8f9fb;border:2px solid var(--bd);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;user-select:none;transition:border-color .15s,background .15s}
+.mbox.sq{width:72px;height:72px;border-radius:10px}
+.mbox.rect{width:110px;height:66px;border-radius:10px}
 .mbox:active{border-color:var(--acc)}
 .mbox.occ{background:#eafaf1;border-color:var(--green)}
+.mbox.dragging{opacity:.7;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.15)}
 .mbox-lbl{font-size:10px;color:var(--mt)}
-.mbox-num{font-weight:700;font-size:15px}
+.mbox-num{font-weight:700;font-size:14px}
 .mbox.occ .mbox-num{color:var(--green)}
 .mbox-g{font-size:10px;color:var(--green)}
 .mbox-time{font-size:9px;color:var(--mt)}
+.edit-mode .mbox{cursor:grab;border-style:dashed}
+.edit-mode .mbox:active{cursor:grabbing}
+.edit-mode .mbox.occ{background:#eafaf1}
+.mesa-edit-bar{display:flex;gap:6px;flex-wrap:wrap;padding:8px 14px;border-top:1px solid var(--bd);background:#fafafa}
+
 
 /* ── KDS ── */
 #v-kds{flex-direction:column;padding:12px;overflow-y:auto;gap:10px}
@@ -354,8 +363,29 @@ textarea{resize:none}
   </div>
 
   <div id="v-mesas" class="view">
-    <div style="font-size:15px;font-weight:600;margin-bottom:12px">Mesas</div>
-    <div id="mesa-map-wrap"><div class="m-room-label">SALÓN</div></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+      <div style="font-size:15px;font-weight:600">Mesas</div>
+      <div style="display:flex;gap:6px">
+        <button class="bs" id="btn-edit-mesas">✏️ Editar mapa</button>
+        <button class="bp" id="btn-add-mesa" style="display:none;font-size:12px;padding:7px 11px">+ Mesa</button>
+      </div>
+    </div>
+    <div class="mesa-zone">
+      <div class="mesa-zone-hdr"><span>🪑 Salón</span><span id="salon-count" style="font-size:12px;color:var(--mt)"></span></div>
+      <div class="mesa-canvas" id="canvas-salon"></div>
+      <div class="mesa-edit-bar" id="bar-salon" style="display:none">
+        <button class="bs" style="font-size:12px;padding:5px 10px" onclick="addMesa('salon','sq')">+ Cuadrada</button>
+        <button class="bs" style="font-size:12px;padding:5px 10px" onclick="addMesa('salon','rect')">+ Rectangular</button>
+      </div>
+    </div>
+    <div class="mesa-zone">
+      <div class="mesa-zone-hdr"><span>🍺 Barra</span><span id="barra-count" style="font-size:12px;color:var(--mt)"></span></div>
+      <div class="mesa-canvas" id="canvas-barra"></div>
+      <div class="mesa-edit-bar" id="bar-barra" style="display:none">
+        <button class="bs" style="font-size:12px;padding:5px 10px" onclick="addMesa('barra','sq')">+ Cuadrada</button>
+        <button class="bs" style="font-size:12px;padding:5px 10px" onclick="addMesa('barra','rect')">+ Rectangular</button>
+      </div>
+    </div>
     <div style="display:flex;gap:12px;font-size:12px;color:var(--mt)">
       <span style="color:var(--green)">● Ocupada</span><span>● Libre</span>
       <span id="m-count" style="margin-left:auto"></span>
@@ -375,11 +405,23 @@ textarea{resize:none}
   </div>
 
   <div id="v-ventas" class="view">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <select id="f-tipo" class="bs" style="font-size:12px;padding:6px 8px"><option value="">Todos los tipos</option><option value="mostrador">Mostrador</option><option value="mesa">Mesa</option><option value="delivery">Delivery</option></select>
+      <select id="f-pago" class="bs" style="font-size:12px;padding:6px 8px"><option value="">Todos los pagos</option><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option><option value="Transferencia">Transferencia</option></select>
+      <select id="f-estado" class="bs" style="font-size:12px;padding:6px 8px"><option value="">Todos los estados</option><option value="pending">Pendiente</option><option value="prep">Preparando</option><option value="ready">Listo</option><option value="done">Entregado</option></select>
+      <button class="bs" style="font-size:12px;padding:6px 10px" onclick="clearVentasFilters()">✕ Limpiar</button>
+    </div>
     <div class="metrics4">
       <div class="metric"><div class="lbl">Total vendido</div><div class="val" id="m-total" style="color:var(--acc)">$0</div></div>
       <div class="metric"><div class="lbl">Pedidos</div><div class="val" id="m-ped">0</div></div>
       <div class="metric"><div class="lbl">Ticket prom.</div><div class="val" id="m-avg">$0</div></div>
       <div class="metric"><div class="lbl">Propinas</div><div class="val" id="m-tips" style="color:var(--green)">$0</div></div>
+    </div>
+    <div class="metrics4">
+      <div class="metric"><div class="lbl">Personas atendidas</div><div class="val" id="m-personas">0</div></div>
+      <div class="metric"><div class="lbl">Prom. por persona</div><div class="val" id="m-perpersona">$0</div></div>
+      <div class="metric"><div class="lbl">☀️ Almuerzo</div><div class="val" id="turno-dia" style="font-size:15px">$0</div></div>
+      <div class="metric"><div class="lbl">🌙 Cena</div><div class="val" id="turno-noche" style="font-size:15px">$0</div></div>
     </div>
     <div class="card">
       <div style="font-size:13px;font-weight:600;margin-bottom:8px">Ventas por hora</div>
@@ -392,6 +434,13 @@ textarea{resize:none}
   </div>
 
   <div id="v-productos" class="view">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
+      <select id="prod-cat-filter" class="bs" style="font-size:12px;padding:6px 8px"><option value="">Todas las categorías</option></select>
+      <select id="prod-sort" class="bs" style="font-size:12px;padding:6px 8px">
+        <option value="qty">Por unidades</option>
+        <option value="total">Por monto</option>
+      </select>
+    </div>
     <div class="card" id="prod-list"></div>
   </div>
 
@@ -572,7 +621,7 @@ let MENU=[
   {id:13,cat:"Bebidas",name:"Jugo natural",price:2500,out:false,fav:false},
 ];
 const QUICK_NOTES=["Sin cebolla","Sin tomate","Sin aceitunas","Extra queso","Poco queso","Bien cocida","Punto medio","Sin orégano"];
-const TABLES=[{id:1,x:30,y:30},{id:2,x:140,y:30},{id:3,x:250,y:30},{id:4,x:360,y:30},{id:5,x:30,y:120},{id:6,x:140,y:120},{id:7,x:250,y:120},{id:8,x:360,y:120},{id:9,x:30,y:210},{id:10,x:140,y:210},{id:11,x:250,y:210},{id:12,x:360,y:210}];
+
 let orders=[],tableStates={},cart=[],orderType="mostrador",activeCat="⭐",activeTable=null,orderCounter=1,menuIdCounter=20;
 let payTip=0,payMethod="Efectivo",promoApplied=null;
 let lastOrderCount=0;
@@ -942,23 +991,133 @@ function showComanda(o){
 document.getElementById("c-ok").onclick=()=>document.getElementById("comanda-ovl").classList.remove("on");
 
 // ── MESAS ──
+let TABLES = [
+  {id:1,zone:"salon",shape:"sq",x:20,y:20,name:"1"},
+  {id:2,zone:"salon",shape:"sq",x:110,y:20,name:"2"},
+  {id:3,zone:"salon",shape:"sq",x:200,y:20,name:"3"},
+  {id:4,zone:"salon",shape:"sq",x:290,y:20,name:"4"},
+  {id:5,zone:"salon",shape:"rect",x:20,y:110,name:"5"},
+  {id:6,zone:"salon",shape:"rect",x:150,y:110,name:"6"},
+  {id:7,zone:"salon",shape:"sq",x:290,y:110,name:"7"},
+  {id:8,zone:"salon",shape:"sq",x:20,y:200,name:"8"},
+  {id:9,zone:"salon",shape:"sq",x:110,y:200,name:"9"},
+  {id:10,zone:"barra",shape:"rect",x:20,y:20,name:"Barra 1"},
+  {id:11,zone:"barra",shape:"rect",x:150,y:20,name:"Barra 2"},
+  {id:12,zone:"barra",shape:"sq",x:290,y:20,name:"12"},
+];
+let mesaIdCounter = 20;
+let editMesas = false;
+
 function renderMesas(){
-  const map=document.getElementById("mesa-map-wrap");
-  map.querySelectorAll(".mbox").forEach(b=>b.remove());
-  TABLES.forEach(t=>{
-    const oc=tableStates[t.id];
-    const b=document.createElement("div");
-    b.className="mbox"+(oc?" occ":"");
-    b.style.cssText=`left:${t.x}px;top:${t.y}px`;
-    b.innerHTML=`<span class="mbox-lbl">Mesa</span><span class="mbox-num">${t.id}</span>${oc?`<span class="mbox-g">👥 ${oc.guests}</span><span class="mbox-time">${oc.time}</span>`:""}`;
-    b.onclick=()=>{
-      if(oc){if(confirm(`¿Cerrar mesa ${t.id}?`)){delete tableStates[t.id];renderMesas();}}
-      else{activeTable=t.id;orderType="mesa";document.querySelectorAll(".pill[data-t]").forEach(p=>p.classList.remove("on"));document.querySelector('.pill[data-t="mesa"]').classList.add("on");renderOrderMeta();goToView("vender");}
-    };
-    map.appendChild(b);
+  ["salon","barra"].forEach(zone=>{
+    const canvas = document.getElementById("canvas-"+zone);
+    canvas.querySelectorAll(".mbox").forEach(b=>b.remove());
+    const zoneTables = TABLES.filter(t=>t.zone===zone);
+    zoneTables.forEach(t=>renderMbox(t, canvas));
+    const occ = zoneTables.filter(t=>tableStates[t.id]).length;
+    document.getElementById(zone+"-count").textContent=`${occ}/${zoneTables.length} ocupadas`;
   });
-  document.getElementById("m-count").textContent=`Ocupadas: ${Object.keys(tableStates).length}/${TABLES.length}`;
+  const total = TABLES.length;
+  const occTotal = Object.keys(tableStates).length;
+  document.getElementById("m-count").textContent=`Total: ${occTotal}/${total} ocupadas`;
 }
+
+function renderMbox(t, canvas){
+  const oc = tableStates[t.id];
+  const b = document.createElement("div");
+  b.className = `mbox ${t.shape}${oc?" occ":""}${editMesas?" dragging-ready":""}`;
+  b.dataset.id = t.id;
+  b.style.cssText = `left:${t.x}px;top:${t.y}px`;
+  b.innerHTML = `
+    <span class="mbox-lbl">${t.shape==="rect"?"▬":"■"}</span>
+    <span class="mbox-num">${t.name}</span>
+    ${oc?`<span class="mbox-g">👥 ${oc.guests}</span><span class="mbox-time">${oc.time}</span>`:""}
+    ${editMesas?`<button onclick="deleteMesa(${t.id})" style="position:absolute;top:2px;right:3px;background:var(--red);color:#fff;border:none;border-radius:50%;width:16px;height:16px;font-size:10px;padding:0;line-height:16px;cursor:pointer">✕</button>`:""}
+  `;
+
+  if(editMesas){
+    makeDraggable(b, t, canvas);
+    b.querySelector("button")?.addEventListener("click", e=>e.stopPropagation());
+  } else {
+    b.onclick = ()=>{
+      if(oc){
+        if(confirm(`¿Cerrar ${t.name}?`)){delete tableStates[t.id];renderMesas();}
+      } else {
+        activeTable=t.id;orderType="mesa";
+        document.querySelectorAll(".pill[data-t]").forEach(p=>p.classList.remove("on"));
+        document.querySelector('.pill[data-t="mesa"]').classList.add("on");
+        renderOrderMeta();goToView("vender");
+      }
+    };
+  }
+  canvas.appendChild(b);
+}
+
+function makeDraggable(el, t, canvas){
+  let startX,startY,startLeft,startTop,dragging=false;
+  const onStart = e=>{
+    dragging=true;
+    const touch = e.touches?.[0]||e;
+    startX=touch.clientX; startY=touch.clientY;
+    startLeft=t.x; startTop=t.y;
+    el.style.zIndex=50;
+    e.preventDefault();
+  };
+  const onMove = e=>{
+    if(!dragging)return;
+    const touch = e.touches?.[0]||e;
+    const dx=touch.clientX-startX, dy=touch.clientY-startY;
+    const rect=canvas.getBoundingClientRect();
+    const maxX=rect.width-(t.shape==="rect"?110:72);
+    const maxY=canvas.offsetHeight-(t.shape==="rect"?66:72);
+    t.x=Math.max(0,Math.min(maxX,startLeft+dx));
+    t.y=Math.max(0,Math.min(maxY,startTop+dy));
+    el.style.left=t.x+"px";
+    el.style.top=t.y+"px";
+    e.preventDefault();
+  };
+  const onEnd = ()=>{dragging=false;el.style.zIndex="";};
+  el.addEventListener("mousedown",onStart);
+  el.addEventListener("touchstart",onStart,{passive:false});
+  document.addEventListener("mousemove",onMove);
+  document.addEventListener("touchmove",onMove,{passive:false});
+  document.addEventListener("mouseup",onEnd);
+  document.addEventListener("touchend",onEnd);
+}
+
+function addMesa(zone, shape){
+  const id = mesaIdCounter++;
+  const num = TABLES.filter(t=>t.zone===zone).length+1;
+  TABLES.push({id,zone,shape,x:20,y:20,name:zone==="barra"?`Barra ${num}`:`${TABLES.length+1}`});
+  renderMesas();
+}
+
+function deleteMesa(id){
+  if(tableStates[id]){alert("Mesa ocupada, ciérrala primero");return;}
+  TABLES=TABLES.filter(t=>t.id!==id);
+  renderMesas();
+}
+
+// editar nombre con doble click
+document.addEventListener("dblclick",e=>{
+  const box=e.target.closest(".mbox");
+  if(!box||!editMesas)return;
+  const t=TABLES.find(x=>x.id===Number(box.dataset.id));
+  if(!t)return;
+  const newName=prompt("Nombre de la mesa:",t.name);
+  if(newName?.trim())t.name=newName.trim();
+  renderMesas();
+});
+
+document.getElementById("btn-edit-mesas").onclick=()=>{
+  editMesas=!editMesas;
+  document.getElementById("btn-edit-mesas").textContent=editMesas?"✅ Guardar mapa":"✏️ Editar mapa";
+  document.getElementById("btn-edit-mesas").className=editMesas?"bp":"bs";
+  document.getElementById("bar-salon").style.display=editMesas?"flex":"none";
+  document.getElementById("bar-barra").style.display=editMesas?"flex":"none";
+  ["salon","barra"].forEach(z=>document.getElementById("canvas-"+z).classList.toggle("edit-mode",editMesas));
+  renderMesas();
+};
 
 // ── KDS ──
 function renderKDS(){
@@ -991,25 +1150,54 @@ function renderKDS(){
 setInterval(()=>{if(document.getElementById("v-kds")?.classList.contains("on"))renderKDS();},30000);
 
 // ── VENTAS ──
+function clearVentasFilters(){
+  document.getElementById("f-tipo").value="";
+  document.getElementById("f-pago").value="";
+  document.getElementById("f-estado").value="";
+  renderVentas();
+}
+["f-tipo","f-pago","f-estado"].forEach(id=>document.getElementById(id)?.addEventListener("change",renderVentas));
+
 function renderVentas(){
-  const hoy=todayOrders();
+  const tipo=document.getElementById("f-tipo")?.value||"";
+  const pago=document.getElementById("f-pago")?.value||"";
+  const estado=document.getElementById("f-estado")?.value||"";
+  const all=orders.filter(o=>o.date===td());
+  let hoy=all.filter(o=>!o.voided);
+  if(tipo) hoy=hoy.filter(o=>o.type===tipo);
+  if(pago) hoy=hoy.filter(o=>o.method===pago);
+  if(estado) hoy=hoy.filter(o=>o.status===estado);
+
   const total=hoy.reduce((s,o)=>s+o.total,0);
   const tips=hoy.reduce((s,o)=>s+(o.tip||0),0);
+  const personas=hoy.filter(o=>o.type==="mesa"&&o.guests).reduce((s,o)=>s+(o.guests||0),0);
+
   document.getElementById("m-total").textContent=fmt(total);
   document.getElementById("m-ped").textContent=hoy.length;
   document.getElementById("m-avg").textContent=hoy.length?fmt(total/hoy.length):"$0";
   document.getElementById("m-tips").textContent=fmt(tips);
+  document.getElementById("m-personas").textContent=personas||"—";
+  document.getElementById("m-perpersona").textContent=personas?fmt(total/personas):"—";
+  document.getElementById("turno-dia").textContent=fmt(hoy.filter(o=>o.hour<17).reduce((s,o)=>s+o.total,0));
+  document.getElementById("turno-noche").textContent=fmt(hoy.filter(o=>o.hour>=17).reduce((s,o)=>s+o.total,0));
+
   const hours={};hoy.forEach(o=>{const h=o.hour||0;if(!hours[h])hours[h]=0;hours[h]+=o.total;});
   const maxV=Math.max(...Object.values(hours),1);
-  document.getElementById("hour-chart").innerHTML=Object.entries(hours).sort((a,b)=>a[0]-b[0]).map(([h,v])=>`<div class="hbar-wrap"><div class="hbar" style="height:${Math.max(4,Math.round(v/maxV*66))}px"></div><div class="hbar-lbl">${h}h</div></div>`).join("")||'<div style="color:var(--mt);font-size:12px">Sin datos</div>';
-  const all=orders.filter(o=>o.date===td());
+  document.getElementById("hour-chart").innerHTML=Object.entries(hours).sort((a,b)=>a[0]-b[0]).map(([h,v])=>`<div class="hbar-wrap"><div class="hbar" style="height:${Math.max(4,Math.round(v/maxV*66))}px" title="${fmt(v)}"></div><div class="hbar-lbl">${h}h</div></div>`).join("")||'<div style="color:var(--mt);font-size:12px">Sin datos</div>';
+
   const SL={pending:"Pendiente",prep:"Preparando",ready:"Listo",done:"Entregado"};
   const SC={pending:"s-pending",prep:"s-prep",ready:"s-ready",done:"s-done"};
-  document.getElementById("orders-list").innerHTML=!all.length?'<div style="color:var(--mt);font-size:13px">Sin pedidos</div>':[...all].reverse().map(o=>`
+  const filtered=[...all].reverse().filter(o=>{
+    if(tipo&&o.type!==tipo)return false;
+    if(pago&&o.method!==pago)return false;
+    if(estado&&o.status!==estado&&!o.voided)return false;
+    return true;
+  });
+  document.getElementById("orders-list").innerHTML=!filtered.length?'<div style="color:var(--mt);font-size:13px">Sin pedidos</div>':filtered.map(o=>`
     <div class="order-row">
       <div class="or-info">
-        <div><b>#${String(o.id).padStart(3,"0")}</b> ${o.type==="mesa"?`Mesa ${o.table}`:o.type==="delivery"?`🛵 ${o.dlName}`:"🏪"} <span style="color:var(--mt);font-size:11px">${o.method||""}</span></div>
-        <div class="or-meta">${o.time}${o.createdBy?" · "+o.createdBy:""}${o.disc?" · -"+fmt(o.disc):""}${o.voided?" · ⚠ "+o.voidReason:""}</div>
+        <div><b>#${String(o.id).padStart(3,"0")}</b> ${o.type==="mesa"?`Mesa ${TABLES.find(t=>t.id===o.table)?.name||o.table}`:o.type==="delivery"?`🛵 ${o.dlName}`:"🏪"} <span style="color:var(--mt);font-size:11px">${o.method||""}</span></div>
+        <div class="or-meta">${o.time}${o.createdBy?" · "+o.createdBy:""}${o.guests?` · ${o.guests} pax`:""}${o.disc?" · -"+fmt(o.disc):""}${o.voided?" · ⚠ "+o.voidReason:""}</div>
       </div>
       <span class="sb ${o.voided?"s-void":SC[o.status]}">${o.voided?"ANULADO":SL[o.status]}</span>
       <span style="color:${o.voided?"var(--mt)":"var(--acc)"};font-weight:700;${o.voided?"text-decoration:line-through":""}">${fmt(o.total)}</span>
@@ -1030,19 +1218,54 @@ document.getElementById("void-ok").onclick=()=>{
 
 // ── PRODUCTOS ──
 function renderProductos(){
-  const hoy=todayOrders();const ps={};
-  hoy.forEach(o=>o.items.forEach(i=>{if(!ps[i.name])ps[i.name]={qty:0,total:0};ps[i.name].qty+=i.qty;ps[i.name].total+=i.finalPrice*i.qty;}));
-  const list=Object.entries(ps).sort((a,b)=>b[1].qty-a[1].qty);
+  const hoy=todayOrders();
+  const ps={};
+  hoy.forEach(o=>o.items.forEach(i=>{
+    if(!ps[i.name])ps[i.name]={qty:0,total:0,cat:i.cat,price:i.finalPrice};
+    ps[i.name].qty+=i.qty;ps[i.name].total+=i.finalPrice*i.qty;
+  }));
+
+  // poblar filtro categorías
+  const catSel=document.getElementById("prod-cat-filter");
+  const cats=[...new Set(Object.values(ps).map(d=>d.cat))];
+  const curCat=catSel?.value||"";
+  if(catSel){
+    catSel.innerHTML='<option value="">Todas las categorías</option>'+cats.map(c=>`<option value="${c}"${c===curCat?" selected":""}>${c}</option>`).join("");
+    catSel.onchange=renderProductos;
+  }
+  document.getElementById("prod-sort")?.addEventListener("change",renderProductos);
+
+  const sortBy=document.getElementById("prod-sort")?.value||"qty";
+  let list=Object.entries(ps);
+  if(curCat) list=list.filter(([,d])=>d.cat===curCat);
+  list.sort((a,b)=>sortBy==="qty"?b[1].qty-a[1].qty:b[1].total-a[1].total);
+
   const el=document.getElementById("prod-list");
   if(!list.length){el.innerHTML='<div style="color:var(--mt)">Sin ventas registradas</div>';return;}
-  const maxQ=list[0][1].qty;
-  el.innerHTML=list.map(([n,d],i)=>`
+  const maxVal=list[0][1][sortBy];
+  const grandTotal=list.reduce((s,[,d])=>s+d.total,0);
+  const grandQty=list.reduce((s,[,d])=>s+d.qty,0);
+
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mt);padding:0 0 8px;border-bottom:1px solid #f0f2f5">
+      <span>Producto</span><span style="display:flex;gap:20px"><span>Uds</span><span style="min-width:90px;text-align:right">Total</span></span>
+    </div>`+
+    list.map(([n,d],i)=>`
     <div style="display:flex;align-items:center;gap:9px;padding:9px 0;border-bottom:1px solid #f0f2f5">
-      <div style="width:22px;height:22px;border-radius:50%;background:#f0f2f5;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mt)">${i+1}</div>
-      <div style="flex:1"><div style="font-size:13px">${n}</div><div style="background:#f0f2f5;border-radius:3px;height:4px;margin-top:3px"><div style="background:var(--acc);height:100%;border-radius:3px;width:${Math.round(d.qty/maxQ*100)}%"></div></div></div>
-      <div style="color:var(--mt);font-size:12px">${d.qty}</div>
-      <div style="color:var(--acc);font-weight:700;min-width:85px;text-align:right">${fmt(d.total)}</div>
-    </div>`).join("");
+      <div style="width:22px;height:22px;border-radius:50%;background:#f0f2f5;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--mt);flex-shrink:0">${i+1}</div>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${n}</div>
+        <div style="font-size:11px;color:var(--mt)">${d.cat} · ${fmt(d.price)} c/u</div>
+        <div style="background:#f0f2f5;border-radius:3px;height:5px;margin-top:4px">
+          <div style="background:var(--acc);height:100%;border-radius:3px;width:${Math.round(d[sortBy]/maxVal*100)}%"></div>
+        </div>
+      </div>
+      <div style="color:var(--mt);font-size:13px;min-width:30px;text-align:right">${d.qty}</div>
+      <div style="color:var(--acc);font-weight:700;min-width:90px;text-align:right">${fmt(d.total)}</div>
+    </div>`).join("")+
+    `<div style="display:flex;justify-content:space-between;padding:10px 0 2px;font-weight:700;font-size:13px">
+      <span>Total</span><span style="display:flex;gap:20px"><span style="color:var(--mt)">${grandQty}</span><span style="color:var(--acc);min-width:90px;text-align:right">${fmt(grandTotal)}</span></span>
+    </div>`;
 }
 
 // ── MENU EDITOR ──
