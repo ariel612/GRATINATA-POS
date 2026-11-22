@@ -514,7 +514,10 @@ textarea{resize:none}
   .com-card{padding:1mm 2mm 3mm!important;margin:0!important;line-height:1.25!important;break-inside:avoid;page-break-inside:avoid}
   .com-card .com-divider{margin:2mm 0!important}
   .com-line,.com-meta,.com-sub,.com-info{padding:0!important;margin-top:1mm!important}
-  #toast,#add-ovl,#modal{display:none!important}
+  body>*:not(#comanda-ovl){display:none!important}
+  #mob-nav,#mob-cart-fab,#mob-cart-ovl,#toast{display:none!important}
+  #comanda-ovl{position:static!important;display:block!important;inset:auto!important;width:100%!important;height:auto!important}
+  .com-meta,.com-sub{font-weight:600!important;font-size:8.5pt!important}
 }
 @media(max-width:768px){
   #side-col{display:none}
@@ -1031,9 +1034,10 @@ function notesFor(it){
   return[...(PROD_NOTES[it.id]||[]),...(NO_CAT.has(it.id)?[]:(CAT_NOTES[it.cat]||[]))];
 }
 
-const fmt=n=>"$"+Math.round(n).toLocaleString("es-CL");
-const ts=()=>new Date().toLocaleTimeString("es-CL",{hour:"2-digit",minute:"2-digit"});
-const td=()=>new Date().toLocaleDateString("es-CL");
+const fmt=n=>{n=Math.round(+n||0);return (n<0?"-":"")+"$"+String(Math.abs(n)).replace(/\B(?=(\d{3})+(?!\d))/g,".");};
+const ts=()=>{const d=new Date();return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");};
+const dstr=d=>String(d.getDate()).padStart(2,"0")+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+d.getFullYear();
+const td=()=>dstr(new Date());
 const hr=()=>new Date().getHours();
 const todayOrders=()=>orders.filter(o=>o.date===td()&&!o.voided);
 const dlMarkup=()=>0;
@@ -1819,15 +1823,15 @@ $("btn-station").onclick=()=>{
 };
 syncStationBtn();
 function sendJob(kind,data){
-  if(isStation()||!(dbReady&&window._db&&stationOnline())){
-    // esta PC es la estación (imprime directo) o no hay estación en línea (se muestra la comanda como antes)
+  if(isStation()||!(dbReady&&window._db)){
+    // esta PC es la estación (imprime directo) o no hay conexión (se muestra la comanda como antes)
     if(isStation())queuePrint({kind,data});
     else if(kind==="cocina")showCocina(data);else showComanda(data,"recepcion");
     return;
   }
   const key="j"+Date.now()+Math.random().toString(36).slice(2,5);
   window._set(window._ref(window._db,"jobs/"+key),clean({key,kind,data,date:td(),ts:Date.now()}));
-  flashToast("🖨 Enviado a la impresora");
+  flashToast(stationOnline()?"🖨 Enviado a la impresora":"⚠ Estación de impresión sin conexión: se imprimirá cuando vuelva");
 }
 function queuePrint(job){printQ.push(job);if(!printing)runPrint();}
 function runPrint(){
@@ -1848,7 +1852,7 @@ function handleJobs(snap){
   const d=snap.val();if(!d)return;
   Object.values(d).sort((a,b)=>a.ts-b.ts).forEach(j=>{
     window._remove(window._ref(window._db,"jobs/"+j.key));      // se toma el trabajo para no repetirlo
-    if(j.date===td()&&Date.now()-j.ts<10*60*1000)queuePrint(j); // ignora trabajos viejos
+    if(Date.now()-j.ts<30*60*1000)queuePrint(j); // ignora trabajos viejos
   });
 }
 
@@ -1939,7 +1943,7 @@ function pctDelta(cur,prev){
   const p=(cur-prev)/prev*100;
   return`<span class="rp-d ${p>=0?"up":"dn"}">${p>=0?"▲":"▼"} ${Math.abs(p).toFixed(1).replace(".",",")}% vs. período anterior</span>`;
 }
-function dateLbl(d){return d.toLocaleDateString("es-CL",{day:"2-digit",month:"2-digit"});}
+function dateLbl(d){return String(d.getDate()).padStart(2,"0")+"/"+String(d.getMonth()+1).padStart(2,"0");}
 function persist(path,obj){
   if(dbReady&&window._db)window._set(window._ref(window._db,path),clean(obj));
 }
@@ -2181,7 +2185,7 @@ function renderDescuentos(){
   <div class="vf-filters">${periodSel(DF,"dfSet")}</div>
   <div class="rp-cards"><div class="rp-card"><span>Descuentos aplicados</span><b>${l.length}</b></div><div class="rp-card"><span>Total descontado</span><b style="color:var(--red)">${fmt(sum(l,"disc"))}</b></div><div class="rp-card"><span>% sobre ventas brutas</span><b>${sum(valid(ordersIn(a,b)),"gross")?(sum(l,"disc")/sum(valid(ordersIn(a,b)),"gross")*100).toFixed(1).replace(".",","):"0"}%</b></div></div>
   <div class="card" style="padding:0;overflow:auto"><div class="pg-th" style="grid-template-columns:2fr 1fr 1fr 1fr"><span>Nombre</span><span>Veces usado</span><span>Monto usado</span><span>Última vez</span></div>
-  ${Object.entries(g).map(([k,d])=>`<div class="pg-tr" style="grid-template-columns:2fr 1fr 1fr 1fr"><b>${k}</b><span>${d.n}</span><span>${fmt(d.m)}</span><span>${d.last?d.last.toLocaleDateString("es-CL"):"—"}</span></div>`).join("")}</div></div>`;
+  ${Object.entries(g).map(([k,d])=>`<div class="pg-tr" style="grid-template-columns:2fr 1fr 1fr 1fr"><b>${k}</b><span>${d.n}</span><span>${fmt(d.m)}</span><span>${d.last?dstr(d.last):"—"}</span></div>`).join("")}</div></div>`;
 }
 
 // ═════════ REPORTES: VENTAS ═════════
@@ -2224,7 +2228,7 @@ function repVentas(){
    ${card("Promedio por venta",n?fmt(neto/n):"$0",n?neto/n:0,prev.length?pNe/prev.length:0)}
    <div class="rp-card"><span>Propinas</span><b>${fmt(sum(ok,"tip"))}</b></div>
   </div>
-  <div class="card"><div class="rp-t">Evolución de ventas</div><div class="rp-s">${a.toLocaleDateString("es-CL")} – ${b.toLocaleDateString("es-CL")}</div>${vBars(showDays,{h:140})}<div class="rp-s" style="margin-top:6px">Ventas por día (neto)${byDay.length>31?" · últimos 31 días":""}</div></div>
+  <div class="card"><div class="rp-t">Evolución de ventas</div><div class="rp-s">${dstr(a)} – ${dstr(b)}</div>${vBars(showDays,{h:140})}<div class="rp-s" style="margin-top:6px">Ventas por día (neto)${byDay.length>31?" · últimos 31 días":""}</div></div>
   <div class="rp-g2"><div class="card"><div class="rp-t">Ventas por día de la semana</div>${vBars(dw,{color:"#1b4a85"})}</div>
   <div class="card"><div class="rp-t">Ventas por hora</div>${vBars(hrs)}</div></div>
   <div class="rp-g3"><div class="card"><div class="rp-t">Medios de pago</div>${hBars(pay)}</div>
@@ -2290,7 +2294,7 @@ function exportReport(){
   }else{
     const days=[];for(let d=new Date(a);d<=b;d.setDate(d.getDate()+1))days.push(new Date(d));
     const ok=valid(ordersIn(a,b));
-    exportCSV("reporte-ventas",[["Fecha","Ventas","Brutas","Descuentos","Netas","Propinas"],...days.map(d=>{const l=ok.filter(o=>odate(o).getTime()===d.getTime());return[d.toLocaleDateString("es-CL"),l.length,sum(l,"gross"),sum(l,"disc"),sum(l,"total"),sum(l,"tip")];})]);
+    exportCSV("reporte-ventas",[["Fecha","Ventas","Brutas","Descuentos","Netas","Propinas"],...days.map(d=>{const l=ok.filter(o=>odate(o).getTime()===d.getTime());return[dstr(d),l.length,sum(l,"gross"),sum(l,"disc"),sum(l,"total"),sum(l,"tip")];})]);
   }
 }
 
